@@ -45,7 +45,13 @@ struct pthread_queue_s {
 	uint32_t		msg_len;	/* length of each message */
 };
 
+/**************************************************************************************************/
+static void cleanup_handler(void *arg)
+{
+	pthread_mutex_unlock((pthread_mutex_t*)arg);
+}
 
+/**************************************************************************************************/
 /* pthread_queue_create
  * create and initialize a new queue.
  */
@@ -77,6 +83,7 @@ int pthread_queue_create(pthread_queue_t ** ppqueue, uint32_t num_msg, uint32_t 
 	return 0;
 }
 
+/**************************************************************************************************/
 /* pthread_queue_destroy
  * free a queue.
  */
@@ -91,6 +98,7 @@ void pthread_queue_destroy(pthread_queue_t *queue)
 } /* pthread_queue_destroy */
 
 
+/**************************************************************************************************/
 /* pthread_queue_sendmsg
  * puts new message on the queue.
  * If timeout == PTHREAD_WAIT and the queue is full, function waits until there is room.
@@ -108,7 +116,9 @@ int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout)
 
 	/* wait while buffer full */
 	while (queue->count == queue->qsize) {
-			pthread_cond_wait(&queue->notfull, &queue->mutex);
+		pthread_cleanup_push(cleanup_handler, &queue->mutex);
+		pthread_cond_wait(&queue->notfull, &queue->mutex);
+		pthread_cleanup_pop(0);
 	}
 
 	/* copy message to queue */
@@ -125,6 +135,7 @@ int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout)
 } /* pthread_queue_sendmsg */
 
 
+/**************************************************************************************************/
 /* pthread_queue_getmsg
  * gets the oldest message in the queue.
  * If timeout == PTHREAD_WAIT and the queue is empty, function waits for a message.
@@ -143,7 +154,9 @@ int pthread_queue_getmsg(pthread_queue_t *queue, void *msg, long timeout)
 
 	/* wait while there is nothing in the buffer */
 	while (queue->count == 0) {
+		pthread_cleanup_push(cleanup_handler, &queue->mutex);
 		pthread_cond_wait(&queue->notempty, &queue->mutex);
+		pthread_cleanup_pop(0);
 	}
 
 	/* copy message from the queue */
