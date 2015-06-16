@@ -31,6 +31,8 @@ THE SOFTWARE.
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <errno.h>
+
 #include "pthread_queue.h"
 
 struct pthread_queue_s {
@@ -52,6 +54,28 @@ static void cleanup_handler(void *arg)
 }
 
 /**************************************************************************************************/
+static void ms2abs_time(long ms, struct timespec * abstime)
+{
+	clock_gettime(CLOCK_REALTIME, abstime);
+
+	if (ms >= 1000)
+	{
+		abstime->tv_sec += ms/1000;
+		abstime->tv_nsec += (ms % 1000) * 1000000l;
+	}
+
+	else
+		abstime->tv_nsec += ms * 1000000l;
+
+	if (abstime->tv_nsec > 1000000000l)
+	{
+		abstime->tv_nsec -= 1000000000l;
+		abstime->tv_sec += 1;
+	}
+
+}
+
+/**************************************************************************************************/
 /* pthread_queue_create
  * create and initialize a new queue.
  */
@@ -60,13 +84,13 @@ int pthread_queue_create(pthread_queue_t ** ppqueue, uint32_t num_msg, uint32_t 
 	pthread_queue_t * queue;
 	queue = (pthread_queue_t *) malloc(sizeof(pthread_queue_t));
 	if (NULL == queue)
-		return -1;
+		return ENOMEM;
 
 	queue->buffer = (char *) malloc(num_msg * msg_len_bytes);
 	if (NULL == queue->buffer)
 	{
 		free(queue);
-		return -1;
+		return ENOMEM;
 	}
 
 	pthread_mutex_init(&queue->mutex, NULL);
@@ -101,24 +125,45 @@ void pthread_queue_destroy(pthread_queue_t *queue)
 /**************************************************************************************************/
 /* pthread_queue_sendmsg
  * puts new message on the queue.
+ * timeout is PTHREAD_WAIT or PTHREAD_NOWAIT or timeout in ms
  * If timeout == PTHREAD_WAIT and the queue is full, function waits until there is room.
  */
 int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout)
 {
+	struct timespec abstime;
+
+	if ( (PTHREAD_WAIT != timeout) && (timeout < 0) )
+		return EINVAL;
+
+	// convert wait to absolute system time
+	if (timeout > 0)
+		ms2abs_time(timeout, &abstime);
+
 	pthread_mutex_lock(&queue->mutex);
 
 	/* handle nowait and queue is full */
 	if ( (PTHREAD_NOWAIT == timeout) && (queue->count == queue->qsize) )
 	{
 		pthread_mutex_unlock(&queue->mutex);
-		return -1;
+		return ETIMEDOUT;
 	}
 
 	/* wait while buffer full */
 	while (queue->count == queue->qsize) {
+		int result;
+
 		pthread_cleanup_push(cleanup_handler, &queue->mutex);
-		pthread_cond_wait(&queue->notfull, &queue->mutex);
+		if (PTHREAD_WAIT == timeout)
+			result = pthread_cond_wait(&queue->notfull, &queue->mutex);
+		else
+			result = pthread_cond_timedwait(&queue->notfull, &queue->mutex, &abstime);
 		pthread_cleanup_pop(0);
+
+		if (ETIMEDOUT == result)
+		{
+			pthread_mutex_unlock(&queue->mutex);
+			return ETIMEDOUT;
+		}
 	}
 
 	/* copy message to queue */
@@ -138,30 +183,50 @@ int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout)
 /**************************************************************************************************/
 /* pthread_queue_getmsg
  * gets the oldest message in the queue.
- * If timeout == PTHREAD_WAIT and the queue is empty, function waits for a message.
+ * timeout is PTHREAD_WAIT or PTHREAD_NOWAIT or timeout in ms
+ * If timeout == PTHREAD_WAIT and the queue is full, function waits until there is room.
  */
 
 int pthread_queue_getmsg(pthread_queue_t *queue, void *msg, long timeout)
-{	
+{
+	struct timespec abstime;
+
+	if ( (PTHREAD_WAIT != timeout) && (timeout < 0) )
+		return EINVAL;
+
+	// convert wait to absolute system time
+	if (timeout > 0)
+		ms2abs_time(timeout, &abstime);
+
 	pthread_mutex_lock(&queue->mutex);
 
 	/* handle nowait and queue is empty */
 	if ( (PTHREAD_NOWAIT == timeout) && (queue->count == 0) )
 	{
 		pthread_mutex_unlock(&queue->mutex);
-		return -1;
+		return ETIMEDOUT;
 	}
 
 	/* wait while there is nothing in the buffer */
 	while (queue->count == 0) {
+		int result;
+
 		pthread_cleanup_push(cleanup_handler, &queue->mutex);
-		pthread_cond_wait(&queue->notempty, &queue->mutex);
+		if (PTHREAD_WAIT == timeout)
+			result = pthread_cond_wait(&queue->notempty, &queue->mutex);
+		else
+			result = pthread_cond_timedwait(&queue->notempty, &queue->mutex, &abstime);
 		pthread_cleanup_pop(0);
+
+		if (ETIMEDOUT == result)
+		{
+			pthread_mutex_unlock(&queue->mutex);
+			return ETIMEDOUT;
+		}
 	}
 
 	/* copy message from the queue */
 	memcpy(msg, &queue->buffer[queue->head * queue->msg_len], queue->msg_len);
-
 	queue->count--;
 	queue->head = (queue->head == queue->qsize-1) ? 0 : queue->head+1;
 

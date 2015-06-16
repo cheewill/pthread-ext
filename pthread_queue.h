@@ -46,7 +46,9 @@ typedef struct pthread_queue_s pthread_queue_t;
  * @param queue[in]			pointer to the new queue
  * @param num_msg[in]		maximum number of messages in the queue
  * @param msg_len_bytes[in]	maximum size of each message in bytes
- * @returns					0 for success, -1 for failure
+ * @returns                 0 for success, otherwise an error number for failure
+ * @ERRORS
+ *      [ENOMEM]            memory for queue not available
  */
 int pthread_queue_create(pthread_queue_t ** ppqueue,  uint32_t num_msg, uint32_t msg_len_bytes);
 
@@ -68,12 +70,16 @@ void pthread_queue_destroy(pthread_queue_t *queue);
  *
  * If the queue is full, and timeout == PTHREAD_NOWAIT, function returns immediately
  * with return value of -1. If timeout == PTHREAD_WAIT, function waits indefinitely for
- * space to become available in the queue.
+ * space to become available in the queue. Otherwise, if timeout is a positive value > 0,
+ * the function waits for <timeout> ms for space to become available.
  *
- * @param queue[in]			pointer to the queue
- * @param msg[in]			message to place in the queue
- * @param timeout[in]		PTHREAD_WAIT or PTHREAD_NOWAIT
- * @returns					0 for success, -1 for failure
+ * @param queue[in]         pointer to the queue
+ * @param msg[in]           message to place in the queue
+ * @param timeout[in]       PTHREAD_WAIT or PTHREAD_NOWAIT or timeout in ms
+ * @returns                 0 for success, otherwise an error number for failure
+ * @ERRORS
+ *      [ETIMEDOUT]         timeout has passed (or, if PTHREAD_NOWAIT, queue is full)
+ *      [EINVAL]            timeout value is invalid
  */
 int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout);
 
@@ -88,12 +94,15 @@ int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout);
  *
  * If the queue is empty, and timeout == PTHREAD_NOWAIT, function returns immediately
  * with return value of -1. If timeout == PTHREAD_WAIT, function waits indefinitely for
- * a message to become available in the queue.
+ * a message to become available in the queue. Otherwise, if timeout is a positive value > 0,
+ * the function waits for <timeout> ms for a message to become available.
  *
  * @param queue[in]			pointer to the queue
  * @param msg[out]			buffer to receive message from the queue.
  * @param timeout[in]		PTHREAD_WAIT or PTHREAD_NOWAIT
- * @returns					0 for success, -1 for failure
+ * @ERRORS
+ *      [ETIMEDOUT]         timeout has passed (or, if PTHREAD_NOWAIT, queue is full)
+ *      [EINVAL]            timeout value is invalid
  */
 int pthread_queue_getmsg(pthread_queue_t *queue, void *msg, long timeout);
 
