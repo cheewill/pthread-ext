@@ -80,6 +80,7 @@ void pthread_queue_destroy(pthread_queue_t *queue);
  * @ERRORS
  *      [ETIMEDOUT]         timeout has passed (or, if PTHREAD_NOWAIT, queue is full)
  *      [EINVAL]            timeout value is invalid
+ *      [ECANCELED]         queue was reset, message was not put in queue
  */
 int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout);
 
@@ -105,5 +106,29 @@ int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout);
  *      [EINVAL]            timeout value is invalid
  */
 int pthread_queue_getmsg(pthread_queue_t *queue, void *msg, long timeout);
+
+
+
+/** Return number of messages in a queue.
+ *
+ * @param queue[in]			pointer to the queue
+ */
+uint32_t pthread_queue_count(pthread_queue_t * queue);
+
+
+
+/** Reset queue, discarding all messages, prevent further message inputs.
+ *
+ * @param queue[in]			pointer to the queue
+ */
+int pthread_queue_reset(pthread_queue_t * queue);
+
+
+
+/** Unreset queue, allow message inputs.
+ *
+ * @param queue[in]			pointer to the queue
+ */
+int pthread_queue_unreset(pthread_queue_t * queue);
 
 #endif /* PTHREAD_QUEUE_H */
