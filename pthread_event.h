@@ -36,6 +36,7 @@ THE SOFTWARE.
 struct pthread_event_s;
 typedef struct pthread_event_s pthread_event_t;
 typedef enum { PTHREAD_EVENT_ANY, PTHREAD_EVENT_ALL } pthread_event_test;
+typedef enum { PTHREAD_EVENT_CLEAR, PTHREAD_EVENT_KEEP } pthread_event_test;
 
 typedef uint32_t	pthread_event_mask;
 
@@ -73,12 +74,19 @@ int pthread_event_set(pthread_event_t *event, pthread_event_mask mask);
  *
  * If the event test is not satisfied, and timeout == PTHREAD_NOWAIT, function returns immediately
  * with return value of ETIMEDOUT. If timeout == PTHREAD_WAIT, function waits indefinitely for
- * a message to become available in the queue. Otherwise, if timeout is a positive value > 0,
- * the function waits for <timeout> ms for a message to become available.
+ * the event test to be satisfied. Otherwise, if timeout is a positive value > 0,
+ * the function waits for <timeout> ms for the event test to be satisfied.
+ *
+ * Function will wait for all event flags in 'mask' to be set if 'test' = PTHREAD_EVENT_ALL.
+ * Function waits for any event flag in 'mask' to be set if 'test' = PTHREAD_EVENT_ANY.
+ *
+ * Function clears event flags which caused successful return if 'action' = PTHREAD_EVENT_CLEAR.
+ * Function does not clear any event flags if 'action' = PTHREAD_EVENT_KEEP.
  *
  * @param[in] event			pointer to the event
  * @param[in] mask			bits to test
  * @param[in] test			PTHREAD_EVENT_ANY (logical OR), PTHREAD_EVENT_ALL (logical AND)
+ * @param[in] action		PTHREAD_EVENT_CLEAR (clear event bits) or PTHREAD_EVENT_KEEP (leave as is)
  * @param[in] timeout		PTHREAD_WAIT or PTHREAD_NOWAIT or timeout in ms
  * @returns                 0 for success, otherwise an error number for failure
  * @ERRORS
@@ -86,7 +94,8 @@ int pthread_event_set(pthread_event_t *event, pthread_event_mask mask);
  *      [EINVAL]            timeout value is invalid
  *      [ECANCELED]         event was reset
  */
-int pthread_event_wait(pthread_event_t *event, pthread_event_mask mask, pthread_event_test test, long timeout);
+int pthread_event_wait(pthread_event_t *event, pthread_event_mask mask, pthread_event_test test,
+						pthread_event_action action, long timeout);
 
 
 

@@ -110,7 +110,8 @@ int pthread_event_set(pthread_event_t *event, pthread_event_mask mask)
  * If timeout == PTHREAD_WAIT and the event test is not satisfied, function blocks.
  */
 
-int pthread_event_wait(pthread_event_t *event, pthread_event_mask mask, pthread_event_test test, long timeout)
+int pthread_event_wait(pthread_event_t *event, pthread_event_mask mask, pthread_event_test test,
+						pthread_event_action action, long timeout)
 {
 	struct timespec abstime;
 	uint8_t			done;
@@ -153,6 +154,9 @@ int pthread_event_wait(pthread_event_t *event, pthread_event_mask mask, pthread_
 		result = event->reset ? ECANCELED : 0;	// if we woke up because of reset
 		done = (PTHREAD_EVENT_ANY == mask) ? ((event->mask & mask) != 0) : ((event->mask & mask) == mask) ;
 	}
+
+	if (PTHREAD_EVENT_CLEAR == action)
+		event->mask &= ~mask;
 
 	pthread_mutex_unlock(&event->mutex);
 
