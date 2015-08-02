@@ -60,13 +60,23 @@ void pthread_event_destroy(pthread_event_t *event);
 
 
 
-/** Set an event.
+/** Set event flags.
  * 
  * @param[in] event         pointer to the event
- * @param[in] mask          event bits to set
+ * @param[in] mask          event flags to set
  * @returns                 0 for success
  */
 int pthread_event_set(pthread_event_t *event, pthread_event_mask mask);
+
+
+
+/** Clear event flags.
+ * 
+ * @param[in] event         pointer to the event
+ * @param[in] mask          event flags to clear
+ * @returns                 0 for success
+ */
+int pthread_event_clr(pthread_event_t *event, pthread_event_mask mask);
 
 
 

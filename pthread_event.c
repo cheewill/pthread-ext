@@ -86,7 +86,7 @@ void pthread_event_destroy(pthread_event_t *event)
 
 /**************************************************************************************************/
 /* pthread_event_set
- * set an event.
+ * set event flags.
  */
 int pthread_event_set(pthread_event_t *event, pthread_event_mask mask)
 {
@@ -102,6 +102,23 @@ int pthread_event_set(pthread_event_t *event, pthread_event_mask mask)
 
 } /* pthread_event_set */
 
+
+/**************************************************************************************************/
+/* pthread_event_clr
+ * clear event flags.
+ */
+int pthread_event_clr(pthread_event_t *event, pthread_event_mask mask)
+{
+	pthread_mutex_lock(&event->mutex);
+
+	event->mask &= ~mask;
+
+	/* signal waiters */
+	pthread_mutex_unlock(&event->mutex);
+
+	return 0;
+
+} /* pthread_event_clr */
 
 /**************************************************************************************************/
 /* pthread_event_wait
