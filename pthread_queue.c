@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <errno.h>
 
 #include "pthread_queue.h"
+#include "pthread_ext_common.h"
 
 struct pthread_queue_s {
 	char		  *	buffer;		/* circular buffer */
@@ -52,28 +53,6 @@ struct pthread_queue_s {
 static void cleanup_handler(void *arg)
 {
 	pthread_mutex_unlock((pthread_mutex_t*)arg);
-}
-
-/**************************************************************************************************/
-static void ms2abs_time(long ms, struct timespec * abstime)
-{
-	clock_gettime(CLOCK_REALTIME, abstime);
-
-	if (ms >= 1000)
-	{
-		abstime->tv_sec += ms/1000;
-		abstime->tv_nsec += (ms % 1000) * 1000000l;
-	}
-
-	else
-		abstime->tv_nsec += ms * 1000000l;
-
-	if (abstime->tv_nsec > 1000000000l)
-	{
-		abstime->tv_nsec -= 1000000000l;
-		abstime->tv_sec += 1;
-	}
-
 }
 
 /**************************************************************************************************/

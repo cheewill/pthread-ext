@@ -36,19 +36,15 @@ THE SOFTWARE.
 struct pthread_queue_s;
 typedef struct pthread_queue_s pthread_queue_t;
 
-/** Timeout identifiers */
-#define PTHREAD_WAIT	(-1)
-#define PTHREAD_NOWAIT	(0)
-
 
 /** Create a message queue with fixed length messages.
  *
- * @param queue[in]			pointer to the new queue
- * @param num_msg[in]		maximum number of messages in the queue
- * @param msg_len_bytes[in]	maximum size of each message in bytes
- * @returns                 0 for success, otherwise an error number for failure
+ * @param[out] ppqueue        returns new queue pointer
+ * @param[in]  num_msg        maximum number of messages in the queue
+ * @param[in]  msg_len_bytes  maximum size of each message in bytes
+ * @returns                   0 for success, otherwise an error number for failure
  * @ERRORS
- *      [ENOMEM]            memory for queue not available
+ *      [ENOMEM]              memory for queue not available
  */
 int pthread_queue_create(pthread_queue_t ** ppqueue,  uint32_t num_msg, uint32_t msg_len_bytes);
 
@@ -56,8 +52,8 @@ int pthread_queue_create(pthread_queue_t ** ppqueue,  uint32_t num_msg, uint32_t
 
 /** Destroy a message queue.
  * 
- * @param queue[in]			pointer to the queue to destroy
- * @returns					nothing
+ * @param[in]  queue          pointer to the queue to destroy
+ * @returns                   nothing
  */
 void pthread_queue_destroy(pthread_queue_t *queue);
 
@@ -73,9 +69,9 @@ void pthread_queue_destroy(pthread_queue_t *queue);
  * space to become available in the queue. Otherwise, if timeout is a positive value > 0,
  * the function waits for <timeout> ms for space to become available.
  *
- * @param queue[in]         pointer to the queue
- * @param msg[in]           message to place in the queue
- * @param timeout[in]       PTHREAD_WAIT or PTHREAD_NOWAIT or timeout in ms
+ * @param[in] queue         pointer to the queue
+ * @param[in] msg           message to place in the queue
+ * @param[in] timeout       PTHREAD_WAIT or PTHREAD_NOWAIT or timeout in ms
  * @returns                 0 for success, otherwise an error number for failure
  * @ERRORS
  *      [ETIMEDOUT]         timeout has passed (or, if PTHREAD_NOWAIT, queue is full)
@@ -94,16 +90,18 @@ int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout);
  * (see msg_len_bytes arg in pthread_queue_create).
  *
  * If the queue is empty, and timeout == PTHREAD_NOWAIT, function returns immediately
- * with return value of -1. If timeout == PTHREAD_WAIT, function waits indefinitely for
+ * with return value of ETIMEDOUT. If timeout == PTHREAD_WAIT, function waits indefinitely for
  * a message to become available in the queue. Otherwise, if timeout is a positive value > 0,
  * the function waits for <timeout> ms for a message to become available.
  *
- * @param queue[in]			pointer to the queue
- * @param msg[out]			buffer to receive message from the queue.
- * @param timeout[in]		PTHREAD_WAIT or PTHREAD_NOWAIT
+ * @param[in]  queue		pointer to the queue
+ * @param[out] msg			buffer to receive message from the queue.
+ * @param[in]  timeout		PTHREAD_WAIT or PTHREAD_NOWAIT or timeout in ms
+ * @returns                 0 for success, otherwise an error number for failure
  * @ERRORS
  *      [ETIMEDOUT]         timeout has passed (or, if PTHREAD_NOWAIT, queue is full)
  *      [EINVAL]            timeout value is invalid
+ *      [ECANCELED]         queue was reset
  */
 int pthread_queue_getmsg(pthread_queue_t *queue, void *msg, long timeout);
 
@@ -111,7 +109,7 @@ int pthread_queue_getmsg(pthread_queue_t *queue, void *msg, long timeout);
 
 /** Return number of messages in a queue.
  *
- * @param queue[in]			pointer to the queue
+ * @param[in] queue			pointer to the queue
  */
 uint32_t pthread_queue_count(pthread_queue_t * queue);
 
@@ -119,7 +117,7 @@ uint32_t pthread_queue_count(pthread_queue_t * queue);
 
 /** Reset queue, discarding all messages, prevent further message inputs.
  *
- * @param queue[in]			pointer to the queue
+ * @param[in] queue			pointer to the queue
  */
 int pthread_queue_reset(pthread_queue_t * queue);
 
@@ -127,7 +125,7 @@ int pthread_queue_reset(pthread_queue_t * queue);
 
 /** Unreset queue, allow message inputs.
  *
- * @param queue[in]			pointer to the queue
+ * @param[in] queue			pointer to the queue
  */
 int pthread_queue_unreset(pthread_queue_t * queue);
 
