@@ -33,20 +33,34 @@ THE SOFTWARE.
 
 #include <stdint.h>
 
-struct pthread_queue_s;
-typedef struct pthread_queue_s pthread_queue_t;
+typedef struct pthread_queue_s {
+	char		  *	buffer;		/* circular buffer */
+	pthread_mutex_t	mutex;		/* lock the structure */
+	pthread_cond_t	full;		/* full condition */
+	pthread_cond_t	empty;		/* empty condition */
+	uint32_t		head;		/* head of queue (first element) */
+	uint32_t		tail;		/* tail of queue (last element) */
+	uint32_t		count;		/* number of elements in queue */
+	uint32_t		qsize;		/* max number of elements in queue */
+	uint32_t		msg_len;	/* length of each message */
+	uint8_t			reset;		/* 0 = not reset, otherwise reset */
+	uint8_t			destroyFree;/* 1 = free memory on destroy */
+} pthread_queue_t;
 
 
 /** Create a message queue with fixed length messages.
  *
- * @param[out] ppqueue        returns new queue pointer
- * @param[in]  num_msg        maximum number of messages in the queue
- * @param[in]  msg_len_bytes  maximum size of each message in bytes
+ * Set *ppqueue = NULL to allocate memory for the queue. Otherwise, caller allocates memory.
+ *
+ * @param[inout] ppqueue		if *ppqueue == NULL, allocate memory for queue. Returns queue pointer.
+ * @param[in]	 qstart			pointer to the queue buffer
+ * @param[in]    num_msg        maximum number of messages in the queue
+ * @param[in]    msg_len_bytes  maximum size of each message in bytes
  * @returns                   0 for success, otherwise an error number for failure
  * @ERRORS
- *      [ENOMEM]              memory for queue not available
+ *      [ENOMEM]            	memory for queue not available
  */
-int pthread_queue_create(pthread_queue_t ** ppqueue,  uint32_t num_msg, uint32_t msg_len_bytes);
+int pthread_queue_create(pthread_queue_t ** ppqueue, void * qstart, uint32_t num_msg, uint32_t msg_len_bytes);
 
 
 

@@ -33,16 +33,24 @@ THE SOFTWARE.
 
 #include <stdint.h>
 
-struct pthread_event_s;
-typedef struct pthread_event_s pthread_event_t;
 typedef enum { PTHREAD_EVENT_ANY, PTHREAD_EVENT_ALL } pthread_event_test;
-typedef enum { PTHREAD_EVENT_CLEAR, PTHREAD_EVENT_KEEP } pthread_event_test;
+typedef enum { PTHREAD_EVENT_CLEAR, PTHREAD_EVENT_KEEP } pthread_event_action;
 
 typedef uint32_t	pthread_event_mask;
 
+typedef struct pthread_event_s {
+	pthread_mutex_t			mutex;			/* lock the structure */
+	pthread_cond_t			cond;			/* condition variable*/
+	pthread_event_mask		mask;			/* event mask */
+	uint8_t					reset;			/* 0 = not reset, otherwise reset */
+	uint8_t					destroyFree;	/* 1 = free memory on destroy */
+} pthread_event_t;
+
 /** Create an event.
  *
- * @param[out] ppevent		returns the new event pointer
+ * Set *ppevent = NULL to allocate memory for event. Otherwise, caller allocates memory.
+ *
+ * @param[inout] ppevent	if *ppevent == NULL, allocate memory for event. Returns event pointer.
  * @returns                 0 for success, otherwise an error number for failure
  * @ERRORS
  *      [ENOMEM]            memory for event not available

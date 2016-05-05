@@ -36,13 +36,6 @@ THE SOFTWARE.
 #include "pthread_event.h"
 #include "pthread_ext_common.h"
 
-struct pthread_event_s {
-	pthread_mutex_t			mutex;		/* lock the structure */
-	pthread_cond_t			cond;		/* condition variable*/
-	pthread_event_mask		mask;		/* event mask */
-	uint8_t					reset;		/* 0 = not reset, otherwise reset */
-};
-
 /**************************************************************************************************/
 static void cleanup_handler(void *arg)
 {
@@ -56,16 +49,26 @@ static void cleanup_handler(void *arg)
 int pthread_event_create(pthread_event_t ** ppevent)
 {
 	pthread_event_t * event;
-	event = (pthread_event_t *) malloc(sizeof(pthread_event_t));
-	if (NULL == event)
-		return ENOMEM;
+
+	if (NULL == *ppevent)
+	{
+		event = (pthread_event_t *) malloc(sizeof(pthread_event_t));
+		if (NULL == event)
+			return ENOMEM;
+
+		*ppevent = event;
+		event->destroyFree = 1;
+	}
+	else
+	{
+		event = *ppevent;
+		event->destroyFree = 0;
+	}
 
 	pthread_mutex_init(&event->mutex, NULL);
-	pthread_cond_init(&event->full, NULL);
+	pthread_cond_init(&event->cond, NULL);
 	event->mask = 0;
 	event->reset = 0;
-
-	*ppevent = event;
 
 	return 0;
 
@@ -79,7 +82,8 @@ void pthread_event_destroy(pthread_event_t *event)
 {
 	pthread_mutex_destroy(&event->mutex);
 	pthread_cond_destroy(&event->cond);
-	free(event);
+	if (event->destroyFree)
+		free(event);
 
 } /* pthread_event_destroy */
 
@@ -139,7 +143,7 @@ int pthread_event_wait(pthread_event_t *event, pthread_event_mask mask, pthread_
 
 	// convert wait to absolute system time
 	if (timeout > 0)
-		ms2abs_time(timeout, &abstime);
+		pthread_ext_ms2abs_time(timeout, &abstime);
 
 	pthread_mutex_lock(&event->mutex);
 
@@ -213,8 +217,8 @@ int pthread_event_reset(pthread_event_t * event)
 int pthread_event_unreset(pthread_event_t * event)
 {
 	pthread_mutex_lock(&event->mutex);
-	queue->reset = 0;
-	pthread_mutex_unlock(&queue->mutex);
+	event->reset = 0;
+	pthread_mutex_unlock(&event->mutex);
 
 	return 0;
 }

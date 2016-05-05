@@ -36,19 +36,6 @@ THE SOFTWARE.
 #include "pthread_queue.h"
 #include "pthread_ext_common.h"
 
-struct pthread_queue_s {
-	char		  *	buffer;		/* circular buffer */
-	pthread_mutex_t	mutex;		/* lock the structure */
-	pthread_cond_t	full;		/* full condition */
-	pthread_cond_t	empty;		/* empty condition */
-	uint32_t		head;		/* head of queue (first element) */
-	uint32_t		tail;		/* tail of queue (last element) */
-	uint32_t		count;		/* number of elements in queue */
-	uint32_t		qsize;		/* max number of elements in queue */
-	uint32_t		msg_len;	/* length of each message */
-	uint8_t			reset;		/* 0 = not reset, otherwise reset */
-};
-
 /**************************************************************************************************/
 static void cleanup_handler(void *arg)
 {
@@ -59,18 +46,35 @@ static void cleanup_handler(void *arg)
 /* pthread_queue_create
  * create and initialize a new queue.
  */
-int pthread_queue_create(pthread_queue_t ** ppqueue, uint32_t num_msg, uint32_t msg_len_bytes)
+int pthread_queue_create(pthread_queue_t ** ppqueue, void * qstart, uint32_t num_msg, uint32_t msg_len_bytes)
 {
 	pthread_queue_t * queue;
-	queue = (pthread_queue_t *) malloc(sizeof(pthread_queue_t));
-	if (NULL == queue)
-		return ENOMEM;
 
-	queue->buffer = (char *) malloc(num_msg * msg_len_bytes);
-	if (NULL == queue->buffer)
+	if (NULL == *ppqueue)
 	{
-		free(queue);
-		return ENOMEM;
+		queue = (pthread_queue_t *) malloc(sizeof(pthread_queue_t));
+		if (NULL == queue)
+			return ENOMEM;
+	
+		queue->buffer = (char *) malloc(num_msg * msg_len_bytes);
+		if (NULL == queue->buffer)
+		{
+			free(queue);
+			return ENOMEM;
+		}
+
+		*ppqueue = queue;
+		queue->destroyFree = 1;
+	}
+	else
+	{
+		queue = *ppqueue;
+		queue->buffer = (char *) qstart;
+		if (NULL == queue->buffer)
+		{
+			return ENOMEM;
+		}
+		queue->destroyFree = 0;
 	}
 
 	pthread_mutex_init(&queue->mutex, NULL);
@@ -82,8 +86,6 @@ int pthread_queue_create(pthread_queue_t ** ppqueue, uint32_t num_msg, uint32_t 
 	queue->qsize = num_msg;
 	queue->msg_len = msg_len_bytes;
 	queue->reset = 0;
-
-	*ppqueue = queue;
 
 	return 0;
 }
@@ -97,8 +99,11 @@ void pthread_queue_destroy(pthread_queue_t *queue)
 	pthread_mutex_destroy(&queue->mutex);
 	pthread_cond_destroy(&queue->full);
 	pthread_cond_destroy(&queue->empty);
-	free(queue->buffer);
-	free(queue);
+	if (queue->destroyFree)
+	{
+		free(queue->buffer);
+		free(queue);
+	}
 
 } /* pthread_queue_destroy */
 
@@ -121,7 +126,7 @@ int pthread_queue_sendmsg(pthread_queue_t *queue, void *msg, long timeout)
 
 	// convert wait to absolute system time
 	if (timeout > 0)
-		ms2abs_time(timeout, &abstime);
+		pthread_ext_ms2abs_time(timeout, &abstime);
 
 	pthread_mutex_lock(&queue->mutex);
 
@@ -187,7 +192,7 @@ int pthread_queue_getmsg(pthread_queue_t *queue, void *msg, long timeout)
 
 	// convert wait to absolute system time
 	if (timeout > 0)
-		ms2abs_time(timeout, &abstime);
+		pthread_ext_ms2abs_time(timeout, &abstime);
 
 	pthread_mutex_lock(&queue->mutex);
 
