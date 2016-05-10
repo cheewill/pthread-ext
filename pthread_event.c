@@ -136,7 +136,7 @@ int pthread_event_wait(pthread_event_t *event, pthread_event_mask mask, pthread_
 {
 	struct timespec abstime;
 	uint8_t			done;
-	int				result;
+	int				result = 0;
 
 	if ( (PTHREAD_WAIT != timeout) && (timeout < 0) )
 		return EINVAL;
